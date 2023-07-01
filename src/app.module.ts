@@ -12,6 +12,9 @@ import { Reaction } from './modules/reaction/entities/reaction.entity';
 import { ReactionModule } from './modules/reaction/reaction.module';
 import { Friend } from './modules/friend/entities/friend.entity';
 import { FriendModule } from './modules/friend/friend.module';
+import { HandlebarsAdapter, MailerModule } from '@nest-modules/mailer';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -32,6 +35,32 @@ import { FriendModule } from './modules/friend/friend.module';
     CommentModule,
     ReactionModule,
     FriendModule,
+    ConfigModule,
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (config: ConfigService) => ({
+        transport: {
+          host: config.get('MAIL_HOST'),
+          secure: true,
+          port: config.get('MAIL_PORT'),
+          auth: {
+            user: config.get('MAIL_USER'),
+            pass: config.get('MAIL_PASSWORD'),
+          },
+        },
+        defaults: {
+          from: `"No Reply" <${config.get('MAIL_FROM')}>`,
+        },
+        template: {
+          dir: join(__dirname, 'src/templates/email'),
+          adapter: new HandlebarsAdapter(),
+          options: {
+            strict: true,
+          },
+        },
+      }),
+      inject: [ConfigService],
+    }),
   ],
 })
 export class AppModule {}

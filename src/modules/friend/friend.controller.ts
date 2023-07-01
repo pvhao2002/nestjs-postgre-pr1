@@ -13,6 +13,7 @@ import { FriendService } from './friend.service';
 import { CreateFriendDto } from './dto/create-friend.dto';
 import { RemoveFriendDto, UpdateFriendDto } from './dto/update-friend.dto';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { SearchFriendDto } from './dto/search-friend.dto';
 
 @Controller('friend')
 export class FriendController {
@@ -39,9 +40,12 @@ export class FriendController {
 
   @Get('list-friend-recommend')
   @UseGuards(RolesGuard)
-  findAllFriendRecommend(@Req() request: Request) {
+  findAllFriendRecommend(
+    @Req() request: Request,
+    @Body() searchFriendDto: SearchFriendDto,
+  ) {
     const req = request['authUser'];
-    return this.friendService.findRecommendedFriends(req);
+    return this.friendService.findRecommendedFriends(req, searchFriendDto);
   }
 
   @Post('send-request')

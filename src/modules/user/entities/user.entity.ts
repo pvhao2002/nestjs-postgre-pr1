@@ -39,7 +39,7 @@ export class User {
   @Column({ nullable: true })
   accessToken: string;
 
-  @OneToOne(() => Profile)
+  @OneToOne(() => Profile, { cascade: true })
   @JoinColumn()
   profile: Profile;
 

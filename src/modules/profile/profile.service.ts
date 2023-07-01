@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { Profile } from './entities/profile.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '../user/entities/user.entity';
@@ -15,9 +15,50 @@ export class ProfileService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
   ) {}
+  removeWhitespace(str: string): string {
+    // Xóa tất cả khoảng trắng từ chuỗi
+    if (!str) {
+      return '';
+    }
+    const cleanedStr = str.replace(/\s/g, '');
+    return cleanedStr;
+  }
+  async search(search: string) {
+    search = this.removeWhitespace(search);
+    const profile = await this.profileRepository
+      .createQueryBuilder('profile')
+      .leftJoinAndSelect('profile.user', 'user')
+      .where('unaccent(profile.search) ILike unaccent(:search)', {
+        search: `%${search}%`,
+      })
+      .getMany();
+
+    return profile;
+  }
+
+  getDefaultSearchColumns(createProfileDto: any): string {
+    const valuesToConcatenate = [
+      createProfileDto.userName,
+      createProfileDto.phone,
+      createProfileDto.address,
+    ];
+    return valuesToConcatenate
+      .filter((value) => value)
+      .join('')
+      .toLowerCase()
+      .trim();
+  }
 
   create(createProfileDto: CreateProfileDto) {
-    const profile = this.profileRepository.create(createProfileDto);
+    const search = this.getDefaultSearchColumns(createProfileDto);
+
+    const profile = this.profileRepository.create({
+      userName: createProfileDto.userName,
+      phone: createProfileDto.phone,
+      address: createProfileDto.address,
+      dateOfBirth: createProfileDto.dateOfBirth,
+      search: this.removeWhitespace(search),
+    });
     return this.profileRepository.save(profile);
   }
 
@@ -26,23 +67,16 @@ export class ProfileService {
     profileId: string,
     updateProfileDto: UpdateProfileDto,
   ): Promise<string> {
-    // const profile = await this.findOne(id);
-    // profile.userName = updateProfileDto.userName || profile.userName;
-    // profile.phone = updateProfileDto.phone || profile.phone;
-    // profile.address = updateProfileDto.address || profile.address;
-    // profile.dateOfBirth = updateProfileDto.dateOfBirth || profile.dateOfBirth;
-    // return this.profileRepository.save(profile);
-
+    const search = this.getDefaultSearchColumns(updateProfileDto);
     if (!profileId) {
       const profile = await this.profileRepository.create({
         userName: updateProfileDto.userName,
         phone: updateProfileDto.phone,
         address: updateProfileDto.address,
         dateOfBirth: updateProfileDto.dateOfBirth,
+        search: this.removeWhitespace(search),
       });
-
       await this.profileRepository.save(profile);
-
       await this.userRepository.update(
         {
           id: id,
@@ -61,6 +95,7 @@ export class ProfileService {
           phone: updateProfileDto.phone,
           address: updateProfileDto.address,
           dateOfBirth: updateProfileDto.dateOfBirth,
+          search: this.removeWhitespace(search),
         },
       );
     }

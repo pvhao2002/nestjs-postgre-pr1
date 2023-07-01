@@ -31,7 +31,12 @@ export class UserController {
     return json;
   }
 
-  @Post('create')
+  @Post('send-email')
+  async sendEmail(@Body('email') email: string) {
+    return await this.userService.sendEmail(email);
+  }
+
+  @Post('signup')
   create(@Body(new ValidationPipe()) signupUserInput: SignupUserInput) {
     return this.userService.create(signupUserInput);
   }

@@ -6,6 +6,7 @@ import { Friend } from './entities/friend.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TypeFriend } from './entities/friend.enum';
+import { SearchFriendDto } from './dto/search-friend.dto';
 const DEFAULT_RANGE = 10; // unit meters, default 10km
 
 @Injectable()
@@ -17,27 +18,41 @@ export class FriendService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  public async findRecommendedFriends(user: User) {
+  public async findRecommendedFriends(
+    user: User,
+    searchFriendDto: SearchFriendDto,
+  ): Promise<User[]> {
+    const { distance } = searchFriendDto;
+    const subquery = await this.friendRepository
+      .createQueryBuilder('friend')
+      .select('friend.senderId')
+      .where('friend.receiverId = :userId', { userId: user.id })
+      .getQuery();
+
     const recommendedFriends = await this.userRepository
       .createQueryBuilder('user')
       .select([
         'user.id',
         'user.email',
-        'user.location',
+        'user.lat',
+        'user.long',
         `ST_Distance(user.location, ST_SetSRID(ST_GeomFromGeoJSON(:origin), ST_SRID(user.location))) / 1000 AS distance`,
       ])
-      .leftJoin('user.sentFriendRequests', 'sentFriendRequests')
-      .leftJoin('user.receivedFriendRequests', 'receivedFriendRequests')
+      .leftJoin('user.sentFriendRequests', 'sentRequest')
+      .leftJoin('user.receivedFriendRequests', 'receivedRequest')
       .where('user.id != :userId', { userId: user.id })
       .andWhere(
-        `ST_DWithin(user.location, ST_SetSRID(ST_GeomFromGeoJSON(:origin), ST_SRID(user.location)), :range)`,
-      ) // 10km distance
-      .andWhere('sentFriendRequests.receiver IS NULL')
-      .andWhere('receivedFriendRequests.sender IS NULL')
+        `ST_DWithin(user.location, ST_SetSRID(ST_GeomFromGeoJSON(:origin1), ST_SRID(user.location)), :range)`,
+      )
+      .andWhere('sentRequest.id IS NULL')
+      .andWhere('receivedRequest.id IS NULL')
+      .andWhere(`user.id NOT IN (${subquery})`)
       .orderBy('distance', 'ASC')
-      .setParameter('userId', user.id)
-      .setParameter('range', DEFAULT_RANGE)
-      .setParameter('origin', JSON.stringify(user.location))
+      .setParameters({
+        origin: JSON.stringify(user.location),
+        range: distance * 1000, // Convert km to meters,
+        origin1: JSON.stringify(user.location),
+      })
       .getRawMany();
     return recommendedFriends;
   }
@@ -53,7 +68,7 @@ export class FriendService {
     };
 
     console.log(JSON.stringify(origin));
-    
+
     const locations = await this.userRepository
       .createQueryBuilder('user')
       .select([

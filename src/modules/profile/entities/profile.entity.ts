@@ -6,6 +6,9 @@ import {
   PrimaryGeneratedColumn,
   OneToOne,
   OneToMany,
+  BeforeInsert,
+  BeforeUpdate,
+  JoinColumn,
 } from 'typeorm';
 
 @Entity()
@@ -25,7 +28,11 @@ export class Profile {
   @Column({ nullable: true })
   dateOfBirth: Date;
 
-  @OneToOne(() => User)
+  @Column({ default: '' })
+  search: string;
+
+  @OneToOne(() => User, { cascade: true })
+  @JoinColumn()
   user: User;
 
   @OneToMany(() => Post, (post) => post.profile, { cascade: true })

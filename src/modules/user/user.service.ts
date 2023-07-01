@@ -14,6 +14,7 @@ import { Profile } from '../profile/entities/profile.entity';
 import { ProfileService } from '../profile/profile.service';
 import { CreateProfileDto } from '../profile/dto/create-profile.dto';
 import { Geometry, Point } from 'geojson';
+import { MailerService } from '@nest-modules/mailer';
 @Injectable()
 export class UsersService {
   constructor(
@@ -22,6 +23,8 @@ export class UsersService {
     private jwtService: JwtService,
     @InjectRepository(Profile)
     private profileRepository: Repository<Profile>,
+
+    private mailerService: MailerService,
   ) {}
 
   async create(userDto: SignupUserInput) {
@@ -68,7 +71,32 @@ export class UsersService {
       },
     );
 
+    // await this.mailerService.sendMail({
+    //   to: user.email,
+    //   subject: 'INTERN SUBMIT - Welcome to Hao Company',
+    //   template: './welcome',
+    //   context: {
+    //     name: user.email,
+    //   },
+    // });
+
+    // return {
+    //   // mess: 'Please check your email',
+    //   user,
+    // };
+
     return user;
+  }
+
+  async sendEmail(email: string) {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'INTERN SUBMIT - Welcome to Hao Company',
+      template: './welcome',
+      context: {
+        name: email,
+      },
+    });
   }
 
   async findOneByEmail(email: string): Promise<User> {
